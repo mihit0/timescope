@@ -164,34 +164,34 @@ Article text: ${text}`;
 
 export async function POST(request: Request) {
   try {
+//auth
+    // const authHeader = request.headers.get('authorization');
 
-    const authHeader = request.headers.get('authorization');
+    // if (!authHeader || !authHeader.startsWith('Basic ')) {
+    //   return new NextResponse('Unauthorized', {
+    //     status: 401,
+    //     headers: {
+    //       'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
+    //     },
+    //   });
+    // }
 
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-      return new NextResponse('Unauthorized', {
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
-        },
-      });
-    }
+    // const base64Credentials = authHeader.split(' ')[1];
+    // const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    // const [username, password] = credentials.split(':');
 
-    const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    const [username, password] = credentials.split(':');
-
-    if (
-      username !== process.env.AUTH_USERNAME ||
-      password !== process.env.AUTH_PASSWORD
-    ) {
-      return new NextResponse('Unauthorized', {
-        status: 401,
-        headers: {
-          'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
-        },
-      });
-    }
-
+    // if (
+    //   username !== process.env.AUTH_USERNAME ||
+    //   password !== process.env.AUTH_PASSWORD
+    // ) {
+    //   return new NextResponse('Unauthorized', {
+    //     status: 401,
+    //     headers: {
+    //       'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
+    //     },
+    //   });
+    // }
+//auth end
     const { url } = await request.json();
     if (!url) {
       return NextResponse.json({ error: 'URL is required' }, { status: 400 });
