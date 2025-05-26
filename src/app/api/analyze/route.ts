@@ -28,8 +28,27 @@ async function extractArticle(url: string): Promise<{ text: string; year: number
   };
 }
 
+interface AnalysisResult {
+  original_summary: string;
+  modern_summary: string;
+  publication_date?: string;
+  timeline: Array<{
+    year: number;
+    title: string;
+    update: string;
+  }>;
+  sources: Array<{
+    id: number;
+    title: string;
+    url: string;
+    publisher: string;
+    year: number;
+  }>;
+}
+
 async function analyzeWithPerplexity(text: string, year: number) {
-  const prompt = `Output ONLY a JSON object in this exact format, with no other text or markdown. Analyze this specific article from ${year}:
+  const systemPrompt = "You are analyzing a specific news article. Focus only on the article provided and ignore any previous context.";
+  const userPrompt = `Output ONLY a JSON object in this exact format, with no other text or markdown. Analyze this specific article from ${year}:
 {
   "original_summary": "3-sentence summary from ${year}",
   "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
@@ -67,40 +86,8 @@ Article text: ${text}`;
     body: JSON.stringify({
       model: "sonar-pro",
       messages: [
-        { 
-          role: "system", 
-          content: "You are analyzing a specific news article. Focus only on the article provided and ignore any previous context."
-        },
-        { 
-          role: "user", 
-          content: `Analyze this specific article from ${year} and return a JSON object in this exact format:
-
-{
-  "original_summary": "3-sentence summary from the time of publication",
-  "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
-  "publication_date": "${year}",
-  "timeline": [
-    {
-      "year": number,
-      "title": "string",
-      "update": "string with source citation [1] for key facts"
-    }
-  ],
-  "sources": [
-    {
-      "id": number,
-      "title": "string",
-      "url": "string",
-      "publisher": "string",
-      "year": number
-    }
-  ]
-}
-
-Include 6-7 timeline events with citations. DO NOT reuse information from previous articles. Focus ONLY on this article text:
-
-${text}`
-        }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ],
       max_tokens: 1500,
       temperature: 0.7,
@@ -151,7 +138,7 @@ ${text}`
         }
       }
       
-      const parsed = JSON.parse(content);
+      const parsed = JSON.parse(content) as AnalysisResult;
       
       // Validate the structure
       if (!parsed.original_summary || !parsed.modern_summary || !Array.isArray(parsed.timeline) || !Array.isArray(parsed.sources)) {
@@ -171,20 +158,8 @@ ${text}`
       modern_summary: "Error: Could not parse API response",
       timeline: [],
       sources: []
-    };
+    } as AnalysisResult;
   }
-}
-
-// Helper function to validate the analysis object structure
-function isValidAnalysis(obj: any): boolean {
-  return (
-    obj &&
-    typeof obj === 'object' &&
-    typeof obj.original_summary === 'string' &&
-    typeof obj.modern_summary === 'string' &&
-    Array.isArray(obj.timeline) &&
-    Array.isArray(obj.sources)
-  );
 }
 
 export async function POST(request: Request) {
