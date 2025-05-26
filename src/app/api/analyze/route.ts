@@ -54,6 +54,8 @@ async function analyzeWithPerplexity(text: string, year: number) {
 
 For the modern_summary and timeline updates, cite sources using [n] where n is the source ID. Place citations immediately after the fact or figure they support. Each major claim should have a citation.
 
+Include 5-7 timeline events, mixing major developments (like death tolls, reconstruction milestones) with other interesting updates (scientific findings, social impacts, policy changes). Events should be spread across different years when possible, and each should include relevant citations.
+
 Analyze this ${year} article: ${text}`;
 
   const response = await fetch(PERPLEXITY_API_URL, {
