@@ -1,9 +1,10 @@
 # extractor.py
 
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel, HttpUrl
 from newspaper import Article
 from fastapi.middleware.cors import CORSMiddleware
+from urllib.parse import urlparse
 
 app = FastAPI()
 
@@ -22,12 +23,20 @@ class URLInput(BaseModel):
 @app.post("/extract")
 async def extract_article(data: URLInput):
     try:
+        # Validate URL
+        parsed = urlparse(data.url)
+        if not all([parsed.scheme, parsed.netloc]):
+            raise ValueError("Invalid URL format")
+
         article = Article(data.url)
         article.download()
         article.parse()
+        
         return {
             "text": article.text,
             "date": article.publish_date.year if article.publish_date else 2012
         }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Failed to extract article: {str(e)}")

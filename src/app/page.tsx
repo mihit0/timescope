@@ -5,7 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DiffViewer } from '@/components/DiffViewer';
 import { Timeline } from '@/components/Timeline';
+import { Sources } from '@/components/Sources';
 import { Card } from '@/components/ui/card';
+
+interface Source {
+  id: number;
+  title: string;
+  url: string;
+  publisher: string;
+  year: number;
+}
 
 interface AnalysisResult {
   original_summary: string;
@@ -15,6 +24,8 @@ interface AnalysisResult {
     title: string;
     update: string;
   }>;
+  sources?: Source[];
+  publication_date?: string;
 }
 
 export default function Home() {
@@ -75,11 +86,17 @@ export default function Home() {
 
       {result && (
         <div className="space-y-8">
+          {result.publication_date && (
+            <p className="text-sm text-muted-foreground">
+              Originally published: {result.publication_date}
+            </p>
+          )}
           <DiffViewer
             originalSummary={result.original_summary}
             modernSummary={result.modern_summary}
           />
           <Timeline events={result.timeline} />
+          {result.sources && <Sources sources={result.sources} />}
         </div>
       )}
     </main>

@@ -29,16 +29,30 @@ async function extractArticle(url: string): Promise<{ text: string; year: number
 }
 
 async function analyzeWithPerplexity(text: string, year: number) {
-  const prompt = `Analyze this ${year} article and return a response in this exact JSON format:
+  const prompt = `Output ONLY a JSON object in this exact format, with no other text or markdown:
 {
-  "original_summary": "3-sentence summary of the article as written in ${year}",
-  "modern_summary": "Same 3-sentence summary but with 2024 updates in [brackets]",
+  "original_summary": "3-sentence summary from ${year}",
+  "modern_summary": "3-sentence summary with 2024 updates in [brackets]",
+  "publication_date": "${year}-03-11",
   "timeline": [
-    {"year": number, "title": "string", "update": "1-sentence description"}
+    {
+      "year": 2021,
+      "title": "Example Event",
+      "update": "One sentence description"
+    }
+  ],
+  "sources": [
+    {
+      "id": 1,
+      "title": "Source Title",
+      "url": "Source URL",
+      "publisher": "Publisher Name",
+      "year": 2024
+    }
   ]
 }
 
-Article: ${text}`;
+Analyze this ${year} article: ${text}`;
 
   const response = await fetch(PERPLEXITY_API_URL, {
     method: 'POST',
@@ -47,66 +61,89 @@ Article: ${text}`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: "sonar-reasoning",
+      model: "sonar-pro",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 1000
+      max_tokens: 1500  // Increased from 800 to ensure complete response
     })
   });
 
-  // Get the raw response text first
   const rawResponse = await response.text();
-  console.log("Raw Perplexity API response:", rawResponse.slice(0, 500));
+  console.log("Raw Perplexity API response:", rawResponse);
 
   if (!response.ok) {
     console.error("Perplexity API error:", response.status, rawResponse);
     throw new Error(`Failed to analyze with Perplexity: ${response.status}`);
   }
 
-  // Try parsing the response
   try {
     const data = JSON.parse(rawResponse);
-    const content = data.choices?.[0]?.message?.content;
+    let content = data.choices?.[0]?.message?.content?.trim();
     
     if (!content) {
       console.error("Unexpected API response structure:", data);
       throw new Error('Unexpected API response structure');
     }
 
-    // Look for JSON content between ```json and ``` or just find a JSON object
-    let jsonContent;
-    const codeBlockMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
-    if (codeBlockMatch) {
-      jsonContent = codeBlockMatch[1];
-    } else {
-      // Find the last occurrence of a JSON object in the text
-      const jsonMatch = content.match(/\{[\s\S]*\}/g);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[jsonMatch.length - 1]; // Take the last match
-      }
+    console.log("Model content:", content);
+    
+    // Extract JSON from the content by finding the first { and last }
+    const startIdx = content.indexOf('{');
+    const endIdx = content.lastIndexOf('}');
+    
+    if (startIdx === -1 || endIdx === -1) {
+      throw new Error('No JSON object found in response');
     }
 
-    if (jsonContent) {
-      try {
-        const parsed = JSON.parse(jsonContent);
-        // Validate the parsed object has the required fields
-        if (parsed.original_summary && parsed.modern_summary && Array.isArray(parsed.timeline)) {
-          return parsed;
+    // Extract just the JSON part
+    content = content.slice(startIdx, endIdx + 1);
+    
+    // Remove any markdown code block markers
+    content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    
+    try {
+      // Try to fix truncated JSON by ensuring proper closure of arrays and objects
+      if (!content.endsWith('}')) {
+        // Find the last complete source object
+        const lastCompleteSourceIdx = content.lastIndexOf('    }');
+        if (lastCompleteSourceIdx !== -1) {
+          content = content.slice(0, lastCompleteSourceIdx + 5) + ']\n}';
         }
-      } catch (e) {
-        console.error("Failed to parse extracted JSON:", jsonContent);
       }
+      
+      const parsed = JSON.parse(content);
+      
+      // Validate the structure
+      if (!parsed.original_summary || !parsed.modern_summary || !Array.isArray(parsed.timeline) || !Array.isArray(parsed.sources)) {
+        throw new Error('Invalid JSON structure');
+      }
+      
+      return parsed;
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      throw e;
     }
-
-    console.error("Could not find valid JSON in content:", content);
+  } catch (e) {
+    const error = e as Error;
+    console.error("Failed to parse API response:", error.message);
     return {
       original_summary: "Error: Could not parse API response",
       modern_summary: "Error: Could not parse API response",
-      timeline: []
+      timeline: [],
+      sources: []
     };
-  } catch (e) {
-    console.error("Failed to parse API response:", e);
-    throw new Error('Failed to parse API response');
   }
+}
+
+// Helper function to validate the analysis object structure
+function isValidAnalysis(obj: any): boolean {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.original_summary === 'string' &&
+    typeof obj.modern_summary === 'string' &&
+    Array.isArray(obj.timeline) &&
+    Array.isArray(obj.sources)
+  );
 }
 
 export async function POST(request: Request) {
