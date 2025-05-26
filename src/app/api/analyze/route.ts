@@ -29,11 +29,11 @@ async function extractArticle(url: string): Promise<{ text: string; year: number
 }
 
 async function analyzeWithPerplexity(text: string, year: number) {
-  const prompt = `Output ONLY a JSON object in this exact format, with no other text or markdown:
+  const prompt = `Output ONLY a JSON object in this exact format, with no other text or markdown. Analyze this specific article from ${year}:
 {
   "original_summary": "3-sentence summary from ${year}",
   "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
-  "publication_date": "${year}-03-11",
+  "publication_date": "${year}",
   "timeline": [
     {
       "year": 2021,
@@ -56,7 +56,7 @@ For the modern_summary and timeline updates, cite sources using [n] where n is t
 
 Include 5-7 timeline events, mixing major developments (like death tolls, reconstruction milestones) with other interesting updates (scientific findings, social impacts, policy changes). Events should be spread across different years when possible, and each should include relevant citations.
 
-Analyze this ${year} article: ${text}`;
+Article text: ${text}`;
 
   const response = await fetch(PERPLEXITY_API_URL, {
     method: 'POST',
@@ -66,8 +66,45 @@ Analyze this ${year} article: ${text}`;
     },
     body: JSON.stringify({
       model: "sonar-pro",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1500  // Increased from 800 to ensure complete response
+      messages: [
+        { 
+          role: "system", 
+          content: "You are analyzing a specific news article. Focus only on the article provided and ignore any previous context."
+        },
+        { 
+          role: "user", 
+          content: `Analyze this specific article from ${year} and return a JSON object in this exact format:
+
+{
+  "original_summary": "3-sentence summary from the time of publication",
+  "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
+  "publication_date": "${year}",
+  "timeline": [
+    {
+      "year": number,
+      "title": "string",
+      "update": "string with source citation [1] for key facts"
+    }
+  ],
+  "sources": [
+    {
+      "id": number,
+      "title": "string",
+      "url": "string",
+      "publisher": "string",
+      "year": number
+    }
+  ]
+}
+
+Include 5-7 timeline events with citations. DO NOT reuse information from previous articles. Focus ONLY on this article text:
+
+${text}`
+        }
+      ],
+      max_tokens: 1500,
+      temperature: 0.7,
+      random_seed: Date.now()  // Ensure unique responses
     })
   });
 
@@ -168,8 +205,13 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log('Extracting article from URL:', url);
     const { text, year } = await extractArticle(url);
+    console.log('Article extracted, year:', year, 'text length:', text.length);
+
+    console.log('Analyzing with Perplexity...');
     const analysis = await analyzeWithPerplexity(text, year);
+    console.log('Analysis complete, publication date:', analysis.publication_date);
 
     return NextResponse.json(analysis);
   } catch (error) {
