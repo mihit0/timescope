@@ -29,10 +29,14 @@ async function extractArticle(url: string): Promise<{ text: string; year: number
 }
 
 async function analyzeWithPerplexity(text: string, year: number) {
-  const prompt = `Analyze this ${year} article and output JSON with:
-1. original_summary: 3-sentence summary
-2. modern_summary: Same but with 2024 updates in [brackets]
-3. timeline: 3 key events (year, title, 1-sentence update)
+  const prompt = `Analyze this ${year} article and return a response in this exact JSON format:
+{
+  "original_summary": "3-sentence summary of the article as written in ${year}",
+  "modern_summary": "Same 3-sentence summary but with 2024 updates in [brackets]",
+  "timeline": [
+    {"year": number, "title": "string", "update": "1-sentence description"}
+  ]
+}
 
 Article: ${text}`;
 
@@ -49,14 +53,60 @@ Article: ${text}`;
     })
   });
 
+  // Get the raw response text first
+  const rawResponse = await response.text();
+  console.log("Raw Perplexity API response:", rawResponse.slice(0, 500));
+
   if (!response.ok) {
-    const errorBody = await response.text();
-    console.error("Perplexity API error:", response.status, errorBody);
-    throw new Error('Failed to analyze with Perplexity');
+    console.error("Perplexity API error:", response.status, rawResponse);
+    throw new Error(`Failed to analyze with Perplexity: ${response.status}`);
   }
 
-  const data = await response.json();
-  return JSON.parse(data.choices[0].message.content);
+  // Try parsing the response
+  try {
+    const data = JSON.parse(rawResponse);
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      console.error("Unexpected API response structure:", data);
+      throw new Error('Unexpected API response structure');
+    }
+
+    // Look for JSON content between ```json and ``` or just find a JSON object
+    let jsonContent;
+    const codeBlockMatch = content.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      jsonContent = codeBlockMatch[1];
+    } else {
+      // Find the last occurrence of a JSON object in the text
+      const jsonMatch = content.match(/\{[\s\S]*\}/g);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[jsonMatch.length - 1]; // Take the last match
+      }
+    }
+
+    if (jsonContent) {
+      try {
+        const parsed = JSON.parse(jsonContent);
+        // Validate the parsed object has the required fields
+        if (parsed.original_summary && parsed.modern_summary && Array.isArray(parsed.timeline)) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error("Failed to parse extracted JSON:", jsonContent);
+      }
+    }
+
+    console.error("Could not find valid JSON in content:", content);
+    return {
+      original_summary: "Error: Could not parse API response",
+      modern_summary: "Error: Could not parse API response",
+      timeline: []
+    };
+  } catch (e) {
+    console.error("Failed to parse API response:", e);
+    throw new Error('Failed to parse API response');
+  }
 }
 
 export async function POST(request: Request) {
