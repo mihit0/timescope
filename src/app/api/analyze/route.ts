@@ -179,7 +179,6 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-
     console.log('Extracting article from URL:', url);
     const { text, year } = await extractArticle(url);
     console.log('Article extracted, year:', year, 'text length:', text.length);
