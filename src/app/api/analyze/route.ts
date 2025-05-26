@@ -32,13 +32,13 @@ async function analyzeWithPerplexity(text: string, year: number) {
   const prompt = `Output ONLY a JSON object in this exact format, with no other text or markdown:
 {
   "original_summary": "3-sentence summary from ${year}",
-  "modern_summary": "3-sentence summary with 2024 updates in [brackets]",
+  "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
   "publication_date": "${year}-03-11",
   "timeline": [
     {
       "year": 2021,
       "title": "Example Event",
-      "update": "One sentence description"
+      "update": "One sentence description with source citation [1] for key facts"
     }
   ],
   "sources": [
@@ -51,6 +51,8 @@ async function analyzeWithPerplexity(text: string, year: number) {
     }
   ]
 }
+
+For the modern_summary and timeline updates, cite sources using [n] where n is the source ID. Place citations immediately after the fact or figure they support. Each major claim should have a citation.
 
 Analyze this ${year} article: ${text}`;
 
