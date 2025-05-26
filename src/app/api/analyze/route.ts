@@ -164,13 +164,37 @@ Article text: ${text}`;
 
 export async function POST(request: Request) {
   try {
-    const { url } = await request.json();
 
+    const authHeader = request.headers.get('authorization');
+
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+      return new NextResponse('Unauthorized', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
+        },
+      });
+    }
+
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    const [username, password] = credentials.split(':');
+
+    if (
+      username !== process.env.AUTH_USERNAME ||
+      password !== process.env.AUTH_PASSWORD
+    ) {
+      return new NextResponse('Unauthorized', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="TimeScope Private Access"',
+        },
+      });
+    }
+
+    const { url } = await request.json();
     if (!url) {
-      return NextResponse.json(
-        { error: 'URL is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'URL is required' }, { status: 400 });
     }
 
     if (!process.env.PERPLEXITY_API_KEY) {
@@ -179,6 +203,7 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
     console.log('Extracting article from URL:', url);
     const { text, year } = await extractArticle(url);
     console.log('Article extracted, year:', year, 'text length:', text.length);
@@ -196,3 +221,4 @@ export async function POST(request: Request) {
     );
   }
 }
+
