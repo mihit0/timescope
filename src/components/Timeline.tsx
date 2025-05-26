@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 interface TimelineEvent {
   year: number;
@@ -11,25 +12,42 @@ interface TimelineProps {
 }
 
 export function Timeline({ events }: TimelineProps) {
+  // Ensure events are sorted chronologically (earliest to latest)
+  const sortedEvents = [...events].sort((a, b) => a.year - b.year);
+
   return (
     <div className="relative">
       {/* Vertical line */}
-      <div className="absolute left-5 h-full w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
-      
+      <div className="absolute left-6 h-full w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
+
       <div className="space-y-10">
-        {events.map((event, index) => (
-          <div key={index} className="relative pl-16 group">
-            {/* Year circle with glow effect */}
-            <div className="absolute left-0 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-background border-2 border-primary/50 text-primary font-semibold shadow-sm group-hover:bg-primary/10 transition-colors duration-200">
-              {event.year}
-            </div>
-            
-            {/* Content card */}
-            <div className="flex flex-col gap-2 p-4 rounded-lg border bg-card/50 backdrop-blur-sm hover:bg-card transition-colors duration-200">
+        {sortedEvents.map((event, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.1 }}
+            className="relative pl-20 group"
+          >
+            {/* Year Circle */}
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              className="absolute left-0 z-10 flex items-center justify-center w-12 h-12 rounded-full bg-background border-2 border-primary/50 text-primary font-semibold shadow-sm hover:bg-background transition-all duration-200"
+              style={{ left: 'calc(24px - 1px)' }}
+            >
+              <div className="absolute inset-0 rounded-full bg-background z-0" />
+              <span className="relative z-10">{event.year}</span>
+            </motion.div>
+
+            {/* Content Card */}
+            <motion.div
+              whileHover={{ x: 5 }}
+              className="flex flex-col gap-2 p-4 rounded-lg border bg-card/50 backdrop-blur-sm hover:bg-card transition-all duration-200 ml-2"
+            >
               <h3 className="font-semibold text-lg text-foreground">{event.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{event.update}</p>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         ))}
       </div>
     </div>
