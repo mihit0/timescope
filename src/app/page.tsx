@@ -1,78 +1,85 @@
 'use client';
 
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DiffViewer } from '@/components/DiffViewer';
+import { Timeline } from '@/components/Timeline';
+import { Card } from '@/components/ui/card';
+
+interface AnalysisResult {
+  original_summary: string;
+  modern_summary: string;
+  timeline: Array<{
+    year: number;
+    title: string;
+    update: string;
+  }>;
+}
 
 export default function Home() {
   const [url, setUrl] = useState('');
-  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  const analyze = async () => {
+  const handleAnalyze = async () => {
     setLoading(true);
-    setError('');
-    setResult(null);
+    setError(null);
 
     try {
-      const res = await fetch('/api/analyze', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url })
       });
 
-      if (!res.ok) throw new Error('Failed to fetch analysis');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to analyze article');
+      }
 
-      const data = await res.json();
+      const data = await response.json();
       setResult(data);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="max-w-2xl mx-auto p-4 space-y-6">
-      <h1 className="text-3xl font-bold">🕰️ Timescope</h1>
-      <div className="space-y-2">
-        <input
-          type="text"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="Paste article URL..."
-          className="w-full p-2 border rounded"
-        />
-        <button
-          onClick={analyze}
-          disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {loading ? 'Analyzing...' : 'Analyze'}
-        </button>
-      </div>
-
-      {error && <p className="text-red-500">{error}</p>}
+    <main className="container mx-auto p-4 max-w-6xl">
+      <h1 className="text-4xl font-bold text-center mb-8">TimeScope</h1>
+      <Card className="p-6 mb-8">
+        <div className="flex gap-4">
+          <Input
+            type="url"
+            placeholder="Enter article URL..."
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className="flex-1"
+          />
+          <Button 
+            onClick={handleAnalyze}
+            disabled={loading || !url}
+          >
+            {loading ? 'Analyzing...' : 'Analyze'}
+          </Button>
+        </div>
+        
+        {error && (
+          <p className="text-red-500 mt-4">{error}</p>
+        )}
+      </Card>
 
       {result && (
-        <div className="space-y-4 border-t pt-4">
-          <section>
-            <h2 className="text-xl font-semibold">📌 Original Summary</h2>
-            <p>{result.original_summary}</p>
-          </section>
-          <section>
-            <h2 className="text-xl font-semibold">📅 Modern Summary</h2>
-            <p>{result.modern_summary}</p>
-          </section>
-          <section>
-            <h2 className="text-xl font-semibold">🧾 Timeline</h2>
-            <ul className="list-disc pl-5">
-              {result.timeline?.map((event: any, idx: number) => (
-                <li key={idx}>
-                  <strong>{event.year}</strong>: <em>{event.title}</em> — {event.description}
-                </li>
-              ))}
-            </ul>
-          </section>
+        <div className="space-y-8">
+          <DiffViewer
+            originalSummary={result.original_summary}
+            modernSummary={result.modern_summary}
+          />
+          <Timeline events={result.timeline} />
         </div>
       )}
     </main>
