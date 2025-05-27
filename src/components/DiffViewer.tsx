@@ -40,7 +40,7 @@ export function DiffViewer({ originalSummary, modernSummary }: DiffViewerProps) 
           animate="visible"
           variants={fadeIn}
         >
-          <Card className="bg-white dark:bg-zinc-900 shadow-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 transition-all">
+          <Card className="hover-lift bg-white dark:bg-zinc-900 shadow-lg rounded-2xl border border-zinc-200 dark:border-zinc-800 transition-all">
             <CardContent className="p-6 space-y-3">
               <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
                 {card.title}

@@ -61,7 +61,7 @@ export default function Home() {
 
   return (
     <main className="container mx-auto p-4 max-w-6xl">
-      <h1 className="text-4xl font-bold text-center mb-8">TimeScope</h1>
+      <h1 className="text-4xl font-bold text-center mb-8 leading-[0.9]">TimeScope</h1>
       <Card className="p-6 mb-8">
         <div className="flex gap-4">
           <Input
