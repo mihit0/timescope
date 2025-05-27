@@ -19,7 +19,7 @@ app = FastAPI()
 # Get environment and configure CORS
 is_production = os.getenv("ENVIRONMENT") == "production"
 allowed_origins = ["*"] if not is_production else [
-    "https://your-vercel-app.vercel.app",  # Replace with your actual Vercel URL
+    "https://timescope.vercel.app/",  # Replace with your actual Vercel URL
     "http://localhost:3000"  # Keep for local development
 ]
 
