@@ -12,15 +12,14 @@ interface TimelineProps {
 }
 
 export function Timeline({ events }: TimelineProps) {
-  // Ensure events are sorted chronologically
+
   const sortedEvents = [...events].sort((a, b) => a.year - b.year);
 
-  // Define the new left offset for tighter alignment
-  const lineOffset = 16; // pixels
+  const lineOffset = 16; 
 
   return (
     <div className="relative pl-10">
-      {/* Vertical line, closer to the left */}
+      {/* Vertical line */}
       <div
         className="absolute h-full w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent"
         style={{ left: `${lineOffset}px` }}
@@ -37,7 +36,7 @@ export function Timeline({ events }: TimelineProps) {
               transition={{ duration: 0.4, delay: index * 0.1 }}
               className="relative pl-20 group"
             >
-              {/* Year Circle repositioned to match the line */}
+              {/* Year Circle */}
               <motion.div
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}

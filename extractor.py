@@ -10,17 +10,17 @@ import datetime
 import re
 import os
 
-# Set up logging
+# logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Get environment and configure CORS
+# get environment and configure CORS
 is_production = os.getenv("ENVIRONMENT") == "production"
 allowed_origins = ["*"] if not is_production else [
-    "https://timescope.vercel.app/",  # Replace with your actual Vercel URL
-    "http://localhost:3000"  # Keep for local development
+    "https://timescope.vercel.app/",  
+    "http://localhost:3000"  # Kept for local development
 ]
 
 app.add_middleware(
@@ -41,12 +41,12 @@ async def root():
 @app.post("/extract")
 async def extract_article(data: URLInput):
     try:
-        # Validate URL
+        # Validates URL
         parsed = urlparse(data.url)
         if not all([parsed.scheme, parsed.netloc]):
             raise ValueError("Invalid URL format")
             
-        # Configure newspaper
+        # Configures newspaper
         config = Config()
         config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         
@@ -55,13 +55,13 @@ async def extract_article(data: URLInput):
         article.download()
         article.parse()
         
-        # Extract text
+        # Extracts text
         text = article.text
         if not text:
             logger.warning("No text extracted, trying alternative extraction")
-            # You might want to add alternative extraction methods here
             
-        # Extract date with multiple fallback strategies
+            
+        # Extracts date
         try:
             year = None
             
@@ -97,7 +97,7 @@ async def extract_article(data: URLInput):
                                 continue
                 
                 if meta_dates:
-                    year = meta_dates[0]  # Use the first valid date found
+                    year = meta_dates[0]  # Use first valid date found
                     logger.info(f"Found date in meta tags: {year}")
             
             # Strategy 3: Look for year in URL path
@@ -135,7 +135,7 @@ async def extract_article(data: URLInput):
             
             if not year:
                 logger.warning("Could not determine article year through any method")
-                year = None  # Just return None if we can't find a date
+                year = None  # Just returns None
                 
             logger.info(f"Final determined year: {year}")
             

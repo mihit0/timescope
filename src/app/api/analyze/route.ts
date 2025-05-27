@@ -50,14 +50,14 @@ async function analyzeWithPerplexity(text: string, year: number) {
   const systemPrompt = "You are analyzing a specific news article. Focus only on the article provided and ignore any previous context.";
   const userPrompt = `Output ONLY a JSON object in this exact format, with no other text or markdown. Analyze this specific article from ${year}:
 {
-  "original_summary": "3-sentence summary from ${year}",
-  "modern_summary": "3-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure.",
+  "original_summary": "5-sentence summary from ${year}",
+  "modern_summary": "5-sentence summary with 2024 updates in [brackets]. Include source citations like [1] after each major fact or figure. Cite everything with correct and relevant sources. Should be relevant only to the article.",
   "publication_date": "${year}",
   "timeline": [
     {
       "year": 2021,
       "title": "Example Event",
-      "update": "One sentence description with source citation [1] for key facts"
+      "update": "One sentence description with source citation like [1] for key facts"
     }
   ],
   "sources": [
@@ -71,9 +71,10 @@ async function analyzeWithPerplexity(text: string, year: number) {
   ]
 }
 
+Ensure that all sources are relevant to the article. Try to include atleast two sources which are recent. Include atleast 4 sources. 
 For the modern_summary and timeline updates, cite sources using [n] where n is the source ID. Place citations immediately after the fact or figure they support. Each major claim should have a citation.
 
-Include 6-7 timeline events with citations, ensuring at least 4 different years are represented. Start with key events from ${year}, then show how the story evolved across different years up to 2024. Mix major developments (like death tolls, reconstruction milestones) with other interesting updates (scientific findings, social impacts, policy changes). Each event should include relevant citations.
+Include 6-7 timeline events with citations, ensuring at least 4 different years are represented. Start with key events from ${year}, then show how the story evolved across different years up to 2024. Mix major developments (like death tolls, reconstruction milestones) with other interesting updates (scientific findings, social impacts, policy changes). Anything major which is highly relevant to the content in the original and modern summaries. Each event should include relevant citations. Citations should be highly relevant to the original and modern summaries. 
 
 Article text: ${text}`;
 
@@ -91,7 +92,7 @@ Article text: ${text}`;
       ],
       max_tokens: 1500,
       temperature: 0.7,
-      random_seed: Date.now()  // Ensure unique responses
+      random_seed: Date.now()  // Ensures unique responses
     })
   });
 
@@ -114,7 +115,7 @@ Article text: ${text}`;
 
     console.log("Model content:", content);
     
-    // Extract JSON from the content by finding the first { and last}
+    // Extract JSON from the content by finding the first { and last }
     const startIdx = content.indexOf('{');
     const endIdx = content.lastIndexOf('}');
     
@@ -129,20 +130,27 @@ Article text: ${text}`;
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     
     try {
-      // Try to fix truncated JSON by ensuring proper closure of arrays and objects
-      if (!content.endsWith('}')) {
+      // Fix truncated JSON by ensuring proper closure
+      const lastCompleteSourceIdx = content.lastIndexOf('"publisher"');
+      if (lastCompleteSourceIdx !== -1) {
         // Find the last complete source object
-        const lastCompleteSourceIdx = content.lastIndexOf('    }');
-        if (lastCompleteSourceIdx !== -1) {
-          content = content.slice(0, lastCompleteSourceIdx + 5) + ']\n}';
+        const lastCompleteObjectEnd = content.lastIndexOf('},', lastCompleteSourceIdx);
+        if (lastCompleteObjectEnd !== -1) {
+          // Reconstruct the JSON with proper closure
+          content = content.slice(0, lastCompleteObjectEnd + 1) + ']\n}';
         }
       }
       
       const parsed = JSON.parse(content) as AnalysisResult;
       
-      // Validate the structure
-      if (!parsed.original_summary || !parsed.modern_summary || !Array.isArray(parsed.timeline) || !Array.isArray(parsed.sources)) {
+      // Validates the structure and ensures sources array exists
+      if (!parsed.original_summary || !parsed.modern_summary || !Array.isArray(parsed.timeline)) {
         throw new Error('Invalid JSON structure');
+      }
+      
+      // Ensure sources is always an array, even if truncated
+      if (!Array.isArray(parsed.sources)) {
+        parsed.sources = [];
       }
       
       return parsed;
