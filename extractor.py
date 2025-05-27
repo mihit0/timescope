@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import logging
 import datetime
 import re
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -15,10 +16,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Allow frontend access (localhost:3000)
+# Get environment and configure CORS
+is_production = os.getenv("ENVIRONMENT") == "production"
+allowed_origins = ["*"] if not is_production else [
+    "https://your-vercel-app.vercel.app",  # Replace with your actual Vercel URL
+    "http://localhost:3000"  # Keep for local development
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://localhost:3000"] to be strict
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -26,6 +33,10 @@ app.add_middleware(
 
 class URLInput(BaseModel):
     url: str
+
+@app.get("/")
+async def root():
+    return {"status": "Article extractor service is running"}
 
 @app.post("/extract")
 async def extract_article(data: URLInput):
@@ -144,3 +155,8 @@ async def extract_article(data: URLInput):
     except Exception as e:
         logger.error(f"Extraction error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to extract article: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

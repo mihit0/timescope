@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: article-extractor
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python extractor.py
+    envVars:
+      - key: ENVIRONMENT
+        value: production

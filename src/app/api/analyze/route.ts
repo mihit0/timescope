@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
-const EXTRACTOR_URL = 'http://localhost:8000/extract';
+const EXTRACTOR_URL = process.env.EXTRACTOR_URL || 'http://localhost:8000/extract';
 
 async function extractArticle(url: string): Promise<{ text: string; year: number }> {
   const response = await fetch(EXTRACTOR_URL, {
@@ -221,4 +221,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
