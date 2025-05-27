@@ -114,7 +114,7 @@ Article text: ${text}`;
 
     console.log("Model content:", content);
     
-    // Extract JSON from the content by finding the first { and last }
+    // Extract JSON from the content by finding the first { and last}
     const startIdx = content.indexOf('{');
     const endIdx = content.lastIndexOf('}');
     
