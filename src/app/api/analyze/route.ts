@@ -44,10 +44,10 @@ async function extractArticle(url: string): Promise<{ text: string; year: number
       text: data.text,
       year: year
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Article extraction error:', error);
     console.error('Failed URL:', url);
-    throw new Error(`Failed to extract article: ${error?.message || 'Unknown error'}`);
+    throw new Error(`Failed to extract article: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -194,9 +194,9 @@ Article text: ${text}`;
       }
       
       throw new Error('Invalid JSON structure');
-    } catch (_parseError) {
+    } catch (error) {
       // If initial parse fails, try reconstruction for truncated JSON
-      console.log("Initial parse failed, attempting reconstruction...");
+      console.log("Initial parse failed, attempting reconstruction:", error instanceof Error ? error.message : 'Unknown error');
       
       // Try to extract the main components even if JSON is malformed
       const originalSummaryMatch = content.match(/"original_summary":\s*"([^"]+)"/);
@@ -209,8 +209,8 @@ Article text: ${text}`;
       if (timelineMatch) {
         try {
           timeline = JSON.parse(timelineMatch[1]);
-        } catch (_timelineError) {
-          console.log("Failed to parse timeline, using empty array");
+        } catch (error) {
+          console.log("Failed to parse timeline:", error instanceof Error ? error.message : 'Unknown error');
         }
       }
 
@@ -228,8 +228,8 @@ Article text: ${text}`;
             publisher: sourceMatch[4],
             year: parseInt(sourceMatch[5])
           });
-        } catch (_sourceError) {
-          console.log("Failed to parse source object, skipping");
+        } catch (error) {
+          console.log("Failed to parse source object:", error instanceof Error ? error.message : 'Unknown error');
         }
       }
       
