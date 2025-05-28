@@ -182,7 +182,7 @@ Article text: ${text}`;
     // Remove any markdown code block markers
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     
-    let parsedResult: any;
+    let parsedResult: Partial<AnalysisResult>;
     
     try {
       // First try to parse the content as is
@@ -194,7 +194,7 @@ Article text: ${text}`;
       }
       
       throw new Error('Invalid JSON structure');
-    } catch (parseError) {
+    } catch (_parseError) {
       // If initial parse fails, try reconstruction for truncated JSON
       console.log("Initial parse failed, attempting reconstruction...");
       
@@ -209,7 +209,7 @@ Article text: ${text}`;
       if (timelineMatch) {
         try {
           timeline = JSON.parse(timelineMatch[1]);
-        } catch (e) {
+        } catch (_timelineError) {
           console.log("Failed to parse timeline, using empty array");
         }
       }
@@ -228,13 +228,13 @@ Article text: ${text}`;
             publisher: sourceMatch[4],
             year: parseInt(sourceMatch[5])
           });
-        } catch (e) {
+        } catch (_sourceError) {
           console.log("Failed to parse source object, skipping");
         }
       }
       
       // Reconstruct the JSON with all valid components
-      const reconstructed = {
+      const reconstructed: AnalysisResult = {
         original_summary: originalSummaryMatch ? originalSummaryMatch[1] : "Error: Could not parse original summary",
         modern_summary: modernSummaryMatch ? modernSummaryMatch[1] : "Error: Could not parse modern summary",
         publication_date: publicationDateMatch ? publicationDateMatch[1] : undefined,
@@ -247,7 +247,7 @@ Article text: ${text}`;
         throw new Error('Failed to reconstruct valid content');
       }
       
-      return reconstructed as AnalysisResult;
+      return reconstructed;
     }
   } catch (e) {
     console.error("Failed to parse API response:", e);
