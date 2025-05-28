@@ -9,6 +9,7 @@ import logging
 import datetime
 import re
 import os
+from bs4 import BeautifulSoup
 
 # logging
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +60,44 @@ async def extract_article(data: URLInput):
         text = article.text
         if not text:
             logger.warning("No text extracted, trying alternative extraction")
+            # Try to extract from article.html
+            if article.html:
+                # Special handling for old CNN articles
+                if 'cnn.com' in data.url.lower():
+                    
+                    content_blocks = []
+                    
+                    # different potential content locations
+                    selectors = [
+                        'td:nth-of-type(3)',  
+                        'td[width="70%"]',    
+                        'td.cnnBodyText',      
+                        'p.cnnBodyText',     
+                    ]
+                    
+                    for selector in selectors:
+                        elements = article.soup.select(selector)
+                        for element in elements:
+                            # Clean up the text
+                            block_text = element.get_text(strip=True)
+                            if len(block_text) > 100:  
+                                content_blocks.append(block_text)
+                    
+                    if content_blocks:
+                        text = '\n\n'.join(content_blocks)
+                        logger.info("Successfully extracted text using CNN legacy format handler")
+                else:
+                    # Generic fallback for other sites
+                    
+                    for unwanted in article.soup.find_all(['script', 'style', 'nav', 'header', 'footer']):
+                        unwanted.decompose()
+                    
+                    
+                    paragraphs = article.soup.find_all('p')
+                    text = '\n\n'.join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 50)
             
+        if not text:
+            raise ValueError("Could not extract any meaningful text from the article")
             
         # Extracts date
         try:
@@ -111,37 +149,15 @@ async def extract_article(data: URLInput):
                         logger.info(f"Found date in URL path: {year}")
                         break
             
-            # Strategy 4: Search for year patterns in text
-            if not year:
-                # Look for date patterns in the first few paragraphs
-                first_paragraphs = ' '.join(article.text.split('\n')[:3])
-                
-                date_patterns = [
-                    r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+(\d{4})',
-                    r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+(\d{4})',
-                    r'\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})',
-                    r'\d{1,2}/\d{1,2}/(\d{4})',
-                    r'\d{4}-\d{2}-\d{2}'
-                ]
-                
-                for pattern in date_patterns:
-                    matches = re.findall(pattern, first_paragraphs)
-                    if matches:
-                        potential_year = int(matches[0])
-                        if 1990 <= potential_year <= current_year:
-                            year = potential_year
-                            logger.info(f"Found date in text content: {year}")
-                            break
-            
             if not year:
                 logger.warning("Could not determine article year through any method")
-                year = None  # Just returns None
+                year = None
                 
             logger.info(f"Final determined year: {year}")
             
         except Exception as e:
             logger.error(f"Error extracting date: {e}")
-            year = None  # Return None on any error
+            year = None
         
         logger.info(f"Successfully extracted article. Year: {year}, Text length: {len(text)}")
         

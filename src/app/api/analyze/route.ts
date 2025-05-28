@@ -4,28 +4,51 @@ const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 const EXTRACTOR_URL = process.env.EXTRACTOR_URL || 'http://localhost:8000/extract';
 
 async function extractArticle(url: string): Promise<{ text: string; year: number }> {
-  const response = await fetch(EXTRACTOR_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ url })
-  });
+  try {
+    const response = await fetch(EXTRACTOR_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url })
+    });
 
-  if (!response.ok) {
-    throw new Error('Failed to extract article');
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error('Extraction failed with status:', response.status);
+      console.error('Extraction error details:', data);
+      throw new Error(`Failed to extract article: ${data.error || response.statusText}`);
+    }
+    
+    if (data.error) {
+      console.error('Extractor service error:', data.error);
+      throw new Error(data.error);
+    }
+
+    if (!data.text || typeof data.text !== 'string') {
+      console.error('Invalid text in response:', data);
+      throw new Error('No valid text content found in article');
+    }
+
+    // Extract year from URL if date not provided
+    let year = data.date;
+    if (!year) {
+      const yearMatch = url.match(/\/(\d{4})\//);
+      if (yearMatch) {
+        year = parseInt(yearMatch[1]);
+      }
+    }
+
+    return {
+      text: data.text,
+      year: year
+    };
+  } catch (error: any) {
+    console.error('Article extraction error:', error);
+    console.error('Failed URL:', url);
+    throw new Error(`Failed to extract article: ${error?.message || 'Unknown error'}`);
   }
-
-  const data = await response.json();
-  
-  if (data.error) {
-    throw new Error(data.error);
-  }
-
-  return {
-    text: data.text,
-    year: data.date // the FastAPI endpoint returns 'date' as the year
-  };
 }
 
 interface AnalysisResult {
@@ -120,7 +143,7 @@ Article text: ${text}`;
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
-      max_tokens: 1550,
+      max_tokens: 1600,
       temperature: 0.5,
       random_seed: Date.now()  // Ensures unique responses
     })
@@ -159,38 +182,75 @@ Article text: ${text}`;
     // Remove any markdown code block markers
     content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     
+    let parsedResult: any;
+    
     try {
-      // Fix truncated JSON by ensuring proper closure
-      const lastCompleteSourceIdx = content.lastIndexOf('"publisher"');
-      if (lastCompleteSourceIdx !== -1) {
-        // Find the last complete source object
-        const lastCompleteObjectEnd = content.lastIndexOf('},', lastCompleteSourceIdx);
-        if (lastCompleteObjectEnd !== -1) {
-          // Reconstruct the JSON with proper closure
-          content = content.slice(0, lastCompleteObjectEnd + 1) + ']\n}';
+      // First try to parse the content as is
+      parsedResult = JSON.parse(content);
+      
+      // If parsing succeeds and has valid structure, return it
+      if (parsedResult.original_summary && parsedResult.modern_summary && Array.isArray(parsedResult.timeline) && Array.isArray(parsedResult.sources)) {
+        return parsedResult as AnalysisResult;
+      }
+      
+      throw new Error('Invalid JSON structure');
+    } catch (parseError) {
+      // If initial parse fails, try reconstruction for truncated JSON
+      console.log("Initial parse failed, attempting reconstruction...");
+      
+      // Try to extract the main components even if JSON is malformed
+      const originalSummaryMatch = content.match(/"original_summary":\s*"([^"]+)"/);
+      const modernSummaryMatch = content.match(/"modern_summary":\s*"([^"]+)"/);
+      const publicationDateMatch = content.match(/"publication_date":\s*"([^"]+)"/);
+      
+      // Extract timeline array
+      const timelineMatch = content.match(/"timeline":\s*(\[[\s\S]*?\])/);
+      let timeline = [];
+      if (timelineMatch) {
+        try {
+          timeline = JSON.parse(timelineMatch[1]);
+        } catch (e) {
+          console.log("Failed to parse timeline, using empty array");
+        }
+      }
+
+      // Find all complete source objects
+      const sourceObjects = [];
+      const sourceRegex = /{[^{]*?"id":\s*(\d+)[^{]*?"title":\s*"([^"]+)"[^{]*?"url":\s*"([^"]+)"[^{]*?"publisher":\s*"([^"]+)"[^{]*?"year":\s*(\d+)[^}]*?}/g;
+      let sourceMatch;
+      
+      while ((sourceMatch = sourceRegex.exec(content)) !== null) {
+        try {
+          sourceObjects.push({
+            id: parseInt(sourceMatch[1]),
+            title: sourceMatch[2],
+            url: sourceMatch[3],
+            publisher: sourceMatch[4],
+            year: parseInt(sourceMatch[5])
+          });
+        } catch (e) {
+          console.log("Failed to parse source object, skipping");
         }
       }
       
-      const parsed = JSON.parse(content) as AnalysisResult;
+      // Reconstruct the JSON with all valid components
+      const reconstructed = {
+        original_summary: originalSummaryMatch ? originalSummaryMatch[1] : "Error: Could not parse original summary",
+        modern_summary: modernSummaryMatch ? modernSummaryMatch[1] : "Error: Could not parse modern summary",
+        publication_date: publicationDateMatch ? publicationDateMatch[1] : undefined,
+        timeline: timeline,
+        sources: sourceObjects
+      };
       
-      // Validates the structure and ensures sources array exists
-      if (!parsed.original_summary || !parsed.modern_summary || !Array.isArray(parsed.timeline)) {
-        throw new Error('Invalid JSON structure');
+      // Validate the reconstructed object has at least some content
+      if (!reconstructed.original_summary || !reconstructed.modern_summary) {
+        throw new Error('Failed to reconstruct valid content');
       }
       
-      // Ensure sources is always an array, even if truncated
-      if (!Array.isArray(parsed.sources)) {
-        parsed.sources = [];
-      }
-      
-      return parsed;
-    } catch (e) {
-      console.error("Failed to parse JSON:", e);
-      throw e;
+      return reconstructed as AnalysisResult;
     }
   } catch (e) {
-    const error = e as Error;
-    console.error("Failed to parse API response:", error.message);
+    console.error("Failed to parse API response:", e);
     return {
       original_summary: "Error: Could not parse API response",
       modern_summary: "Error: Could not parse API response",
