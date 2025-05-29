@@ -2,7 +2,19 @@
 
 **Live Demo**: [timescope.vercel.app](https://timescope.vercel.app)
 
-> **Note**: The live demo requires a one-time password that has been shared privately with the hackathon submission.
+> **Note**: The live demo requires a one-time authorization that is below:
+
+Username: admin
+Password: timetravel
+
+This is because I am paying for the API myself. Feel free to test it, but please stay restrained. Thank you for this opportunity! 
+
+Example sources to get dated articles for demo/test:
+CBS: https://www.cbsnews.com/news/2010s-the-decade-in-review-the-top-stories-year-to-year/
+NBC (2003 onwards): https://www.nbcnews.com/archive/articles
+CNN (2002): https://edition.cnn.com/2002/ALLPOLITICS/04/
+CNN (2017): https://edition.cnn.com/article/sitemap-2017.html
+CNET (1995 onwards): https://www.cnet.com/sitemaps/articles/
 
 TimeScope is an innovative web application that revolutionizes how we understand news articles by analyzing their evolution through time. By leveraging Perplexity's Sonar API, advanced NLP and modern web technologies, it provides:
 
