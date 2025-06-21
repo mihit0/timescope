@@ -7,7 +7,7 @@
 Username: admin
 Password: timetravel
 
-This is because I am paying for the API myself. Feel free to test it, but please stay restrained. Thank you for this opportunity! 
+ 
 
 Example sources to get dated articles for demo/test:
 CBS: https://www.cbsnews.com/news/2010s-the-decade-in-review-the-top-stories-year-to-year/
